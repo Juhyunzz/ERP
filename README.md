@@ -1,520 +1,459 @@
-/**
- * COURSE DATA — 약액 코드 발번 및 처방 등록 편
- *
- * 이 파일 하나가 전체 코스의 데이터/구조를 정의합니다.
- * BOM 등록편 등 다른 코스를 만들 때 이 파일과 같은 구조로 새 파일을 만들면
- * App.jsx가 자동으로 렌더링합니다.
- *
- * ── 핫스팟 좌표 규칙 ──
- * 모든 좌표는 이미지 영역 대비 % 값입니다.
- * `{ top, left, width, height }` — 모두 문자열 %.
- * 격자 실측 기준으로 배치되어 있습니다.
- *
- * ── 스텝 종류 ──
- *   kind: 'intro'    — 인트로 화면
- *   kind: 'flow'     — 프로세스 다이어그램
- *   kind: 'complete' — 완료 화면 (체크리스트)
- *   기본             — 이미지 + 핫스팟 스텝
- */
+# Handoff: 한울생약 ERP 교육 가이드 — 약액 코드 발번 및 처방 등록
 
-const COURSE_YAKAEK = {
-  id: 'yakaek-prescription',
-  title: '약액 코드 발번 및 처방 등록',
-  subtitle: '연구소 신입 연구원 · 실무 교육 가이드',
-  audience: '연구소 신입 · ERP 초심자',
-  duration: '약 20 – 25분',
+## Overview
 
-  steps: [
-    // =====================================================
-    // 0 · INTRO
-    // =====================================================
+한울생약 R&D 연구소의 신입 연구원을 위한 **인터랙티브 웹 ERP 교육 가이드**입니다.
+실제 ERP 스크린샷 위에 클릭 가능한 번호 마커(핫스팟)를 얹어, 사용자가
+순서대로 클릭하며 확대 설명을 읽고 다음 단계로 진행하는 튜토리얼 형태.
+
+**주제**: 약액 코드 발번 및 처방 등록 (12스텝 · 45핫스팟)
+**대상**: 연구소 신입 연구원, ERP 초심자
+**소요시간**: 약 20 – 25분
+
+동일한 구조로 **BOM 등록편** 등 다른 코스를 확장할 수 있게 컴포넌트형/데이터 분리형으로 설계됨.
+
+---
+
+## About the Design Files
+
+이 번들 안의 파일들은 **HTML로 만든 디자인 레퍼런스**입니다. React + Babel(브라우저 트랜스파일) 기반의 프로토타입으로, **최종 룩 앤 필과 인터랙션을 보여주기 위한 참고 자료**이지 그대로 프로덕션에 배포할 코드는 아닙니다.
+
+구현 시 접근 방식:
+
+- **기존 코드베이스가 있는 경우** — 그 코드베이스의 프레임워크·라이브러리·디자인 시스템 관례를 따라 화면을 재구현하세요 (React SPA, Next.js, Vue, Django templates 등). HTML/CSS는 시각적 명세로만 참고.
+- **코드베이스가 없는 경우** — 이 프로토타입 그대로 배포해도 무방하나, 프로덕션급 앱으로 발전시키려면 **Next.js + Tailwind** 또는 **Vite + React**를 권장. 상태 관리는 React 로컬 state로 충분(외부 상태 라이브러리 불필요).
+
+번들된 HTML 파일들을 그대로 서비스로 올리는 것도 가능하지만, 다음 이유로 **재구현을 권장**합니다:
+- Babel in-browser 트랜스파일은 프로덕션 성능 나쁨 (사전 컴파일 필요)
+- 코스 데이터가 JSX 안에 있어서 CMS 연동 시 데이터 분리 필요
+- 이미지 최적화, 라우팅, SEO 대응이 안 되어 있음
+
+---
+
+## Fidelity
+
+**High-fidelity (hifi)** — 픽셀 퍼펙트 목업입니다.
+
+- 실제 한울생약 ERP 화면 스크린샷 14장을 사용
+- 최종 컬러(oklch 기반 청록 브랜드), 타이포그래피(Pretendard, JetBrains Mono), 스페이싱, 라운드, 그림자, 인터랙션까지 확정
+- 45개 핫스팟의 이미지 위 좌표(%)를 실측 · 재조정 완료
+- 개발자는 이 스크린을 **픽셀 단위로 재현**해야 합니다
+
+---
+
+## Screens / Views
+
+### 전역 셸 (App shell)
+
+```
+┌────────────────────────────────────────────────────────────────┐
+│  TOPBAR (60px)                                                 │
+│  [로고+브랜드] │ [제목+태그칩] │ [진행률·초기화]                  │
+├──────────────┬─────────────────────────────────────────────────┤
+│              │  MAIN                                           │
+│  SIDEBAR     │  ┌────────────────────────────────────────┐    │
+│  (300px)     │  │  Step Header (eyebrow + h1 + lead)    │    │
+│              │  ├────────────────────────────────────────┤    │
+│  · 스텝 리스트  │  │  Instructions grid (auto-fit 240px+)  │    │
+│  · 진행률 도트  │  ├────────────────────────────────────────┤    │
+│  · 단축키 안내  │  │  ERP Stage (image + hotspots)         │    │
+│              │  ├────────────────────────────────────────┤    │
+│              │  │  Tip Box (경고/팁 카드)                │    │
+│              │  ├────────────────────────────────────────┤    │
+│              │  │  Step Nav (이전 / 진행률 / 다음)       │    │
+│              │  └────────────────────────────────────────┘    │
+└──────────────┴─────────────────────────────────────────────────┘
+```
+
+레이아웃 A(기본): 좌측 사이드바 + 메인 캔버스. `grid-template-columns: 300px 1fr`
+레이아웃 B(tweak): 사이드바를 오프캔버스로 숨김. `grid-template-columns: 1fr`
+
+---
+
+### 스텝별 화면 (14개)
+
+전체 스텝 배열 (`data/course-yakaek.jsx`의 `steps`):
+
+| # | id                    | kind         | tag        | 제목                                              |
+|---|-----------------------|--------------|------------|--------------------------------------------------|
+| 0 | intro                 | intro        | START      | 시작하기                                          |
+| 1 | overview              | flow         | STEP 1     | 전체 흐름 — 요청 접수부터 처방 확정까지            |
+| 2 | main-menu             | (interactive)| STEP 2     | 메인메뉴에서 [품목정보조회v1] 실행                |
+| 3 | item-query            | (interactive)| STEP 3     | 품목정보조회 — [내용물] 검색                      |
+| 4 | right-click           | (interactive)| STEP 4     | 내용물 목록에서 우클릭 → [품목기본정보]           |
+| 5 | item-basic-detail     | (interactive)| STEP 5     | [품목기본정보관리] — [상세] 탭 입력               |
+| 6 | design-change-empty   | (interactive)| STEP 6     | [설계변경관리(제조처방)] 열기                     |
+| 7 | item-code-help        | (interactive)| STEP 7     | [품목코드HELP]에서 약액 검색                      |
+| 8 | design-change-history | (interactive)| STEP 8     | 조회 결과 & 설계변경 이력 확인                    |
+| 9 | design-register       | (interactive)| STEP 9     | [설계변경등록] — 처방공정도 & 투입원료            |
+| 10| ingredient-table      | (interactive)| STEP 10    | [투입원료] 탭 — 상세 테이블 관리                  |
+| 11| special-notes         | (interactive)| STEP 11    | [특이사항] 탭 — 제조 유의사항 기록                |
+| 12| inspection-spec       | (interactive)| STEP 12    | [검사SPEC] 탭 — 성상·pH 기준 등록                |
+| 13| complete              | complete     | COMPLETE   | 완료 & 체크리스트                                 |
+
+각 interactive 스텝의 데이터 구조 (예: STEP 5):
+
+```js
+{
+  id: 'item-basic-detail',
+  tag: 'STEP 5',
+  title: '[품목기본정보관리] — [상세] 탭 입력',
+  lead: '발번받은 코드를 붙여넣고 관리유형·명칭·약칭·담당·전광판품명을 입력합니다.',
+  image: 'assets/erp/05_item_basic_info.png',
+  imageAspect: 1024 / 835,   // 렌더링 시 컨테이너 aspect-ratio
+  hotspots: [
     {
-      id: 'intro',
-      kind: 'intro',
-      tag: 'START',
-      title: '시작하기',
+      id: 'a', num: 1,
+      top: '18.5%', left: '15.7%', width: '14.2%', height: '3%',
+      title: '품목코드 붙여넣기',
+      body: (<>발번받은 코드를 <span className="code">Ctrl+V</span>로 붙여넣습니다.<br/><br/>
+        뒤의 <span className="code">-3-01</span>은 ERP가 <b>자동 부여</b>합니다.</>)
     },
+    // ... 6개 총
+  ],
+  tip: {
+    title: '주의사항',
+    body: (<><ul><li>...</li></ul></>)
+  }
+}
+```
 
-    // =====================================================
-    // 1 · 전체 흐름 안내
-    // =====================================================
-    {
-      id: 'overview',
-      tag: 'STEP 1',
-      title: '전체 흐름 — 요청 접수부터 처방 확정까지',
-      lead: '영업팀 사양서 접수부터 처방 확정까지의 전 과정을 먼저 조감합니다. 각 단계에서 무엇을 확인해야 하는지 미리 파악하세요.',
-      kind: 'flow',
-      flow: [
-        {n:1, title:'요청 접수', desc:'영업팀에서 신제품사양등록서 + ingredient list 공유', tag:'영업팀'},
-        {n:2, title:'코드 발번', desc:'코드관리 담당자에게 ERP 코드 발번 요청 → 회신으로 코드 수령', tag:'코드관리'},
-        {n:3, title:'약액코드 등록', desc:'품목정보조회 → 품목기본정보에서 약액코드 등록 (-3-01 자동부여)', tag:'연구소'},
-        {n:4, title:'처방 작성', desc:'설계변경등록 → 처방복사 → 원료 추가/삭제로 처방 조정', tag:'연구소'},
-        {n:5, title:'처방 확정', desc:'원가·견적·발주·생산 체크 후 [처방확정] 클릭', tag:'연구소'},
-      ],
-      tip: {
-        title: '이 가이드의 사용법',
-        body: (<>
-          각 화면의 <b>파란색 번호 마커(①②③…)</b>를 순서대로 클릭하세요.
-          마커 위에 마우스를 올리면 클릭할 영역이 하이라이트되고, 클릭 시
-          이미지가 <b>확대되면서</b> 상세 설명이 나타납니다.
-          <br/><br/>
-          완료된 마커는 <b>초록색 체크</b>로 바뀌고, 왼쪽 사이드바에서 스텝 간
-          자유롭게 이동할 수 있습니다.
-        </>)
-      }
-    },
+**핫스팟 좌표는 이미지 픽셀 대비 %.** 모든 스텝의 45개 좌표는 실제 스크린샷에 격자를 얹어 실측한 값 — 재현 시 그대로 사용하세요.
 
-    // =====================================================
-    // 2 · 메인메뉴 → 품목정보조회v1
-    // =====================================================
-    {
-      id: 'main-menu',
-      tag: 'STEP 2',
-      title: '메인메뉴에서 [품목정보조회v1] 실행',
-      lead: '한울ERP(iEMenu) 메인메뉴에서 마이메뉴의 [품목정보조회v1] (PM10105Rv1)을 더블클릭해 실행합니다.',
-      image: 'assets/erp/01_main_menu.png',
-      imageAspect: 1024/775,
-      hotspots: [
-        { id:'a', num:1, top:'13.1%', left:'36%', width:'8%', height:'2.3%',
-          title:'마이메뉴 탭 확인',
-          body:(<>화면 중앙 상단에 <span className="code">[마이메뉴]</span> 탭이 활성화되어 있는지 확인합니다. 자주 쓰는 프로그램이 여기에 등록되어 있습니다.</>)
-        },
-        { id:'b', num:2, top:'17.5%', left:'37%', width:'15%', height:'2.8%',
-          title:'품목정보조회v1 실행',
-          body:(<>목록에서 <span className="code">품목정보조회v1</span> (프로그램ID: <span className="code">PM10105Rv1</span>)을 <b>더블클릭</b>하여 창을 엽니다.</>)
-        },
-      ],
-      tip: {
-        title: '단축 실행',
-        body: (<>메인메뉴가 열려있지 않다면 왼쪽 하단의 <span className="code">전사적자원관리</span> 노란색 배너를 눌러 다시 표시할 수 있습니다.</>)
-      }
-    },
+---
 
-    // =====================================================
-    // 3 · 품목정보조회 — 내용물 검색
-    // =====================================================
-    {
-      id: 'item-query',
-      tag: 'STEP 3',
-      title: '품목정보조회 — [내용물] 검색',
-      lead: '품목유형을 [3]내용물로 지정하고 조회하여 약액 목록을 불러옵니다.',
-      image: 'assets/erp/02_item_query_empty.png',
-      imageAspect: 1024/768,
-      hotspots: [
-        { id:'a', num:1, top:'19.5%', left:'27%', width:'16%', height:'2.8%',
-          title:'품목유형: [3]내용물 선택',
-          body:(<>품목유형 드롭다운에서 <span className="code">[3]내용물</span>을 선택합니다. 약액은 완제품이 아닌 내용물 카테고리로 관리됩니다.</>)
-        },
-        { id:'b', num:2, top:'7%', left:'0.5%', width:'5%', height:'8.5%',
-          title:'조회 실행 (F2)',
-          body:(<>왼쪽 상단의 <span className="code">조회</span> 버튼을 클릭하거나 <span className="code">F2</span> 단축키로 목록을 불러옵니다.</>)
-        },
-      ],
-      tip: {
-        title: '단축키',
-        body: (<><span className="code">F2</span> 조회 · <span className="code">Ctrl+C/V</span> 셀 값 복사·붙여넣기 · <span className="code">Ctrl+F</span> 그리드 내 찾기</>)
-      }
-    },
+### 인트로 화면 (`kind: 'intro'`)
 
-    // =====================================================
-    // 4 · 조회 결과 → 우클릭 → 품목기본정보
-    // =====================================================
-    {
-      id: 'right-click',
-      tag: 'STEP 4',
-      title: '내용물 목록에서 우클릭 → [품목기본정보]',
-      lead: '조회 결과에서 <b>아무 행이나 우클릭</b>하여 컨텍스트 메뉴를 열고, 첫 번째 항목인 [품목기본정보]를 클릭합니다.',
-      image: 'assets/erp/04_rightclick_menu.png',
-      imageAspect: 1024/770,
-      hotspots: [
-        { id:'a', num:1, top:'67.5%', left:'2%', width:'32%', height:'3.2%',
-          title:'행 우클릭',
-          body:(<>목록에서 <b>아무 행이나 우클릭</b>합니다. 특정 행을 지정할 필요는 없으며, 컨텍스트 메뉴만 띄우는 것이 목적입니다.</>)
-        },
-        { id:'b', num:2, top:'67%', left:'34%', width:'17%', height:'4%',
-          title:'[품목기본정보] 클릭',
-          body:(<>컨텍스트 메뉴의 첫 번째 항목 <span className="code">품목기본정보</span>를 클릭합니다. 새 창이 열리며 [품목기본정보관리V1] 화면으로 이동합니다.</>)
-        },
-      ],
-      tip: {
-        title: '왜 우클릭인가요?',
-        body: (<>ERP는 <b>선택된 행의 컨텍스트</b>에 맞춰 관련 메뉴를 띄웁니다. 우클릭 없이 상단 메뉴에서 열면 <b>빈 신규 창</b>이 열려 이후 코드 붙여넣기 절차가 달라지므로, 반드시 <b>우클릭 → 품목기본정보</b> 순서를 지키세요.</>)
-      }
-    },
+- 상단 중앙: **한울생약 로고**(`assets/hanul-logo.png`, 높이 84px, 페이드인 애니메이션)
+- 이하 순서: eyebrow → 제목(42px, 800 weight, 청록 accent) → lead → 3열 메타 카드 → 6장 preview 그리드 → "가이드 시작하기 →" CTA
+- 미리보기 카드는 코스의 image 있는 스텝 중 앞 6개 자동 표시 (`steps.filter(s => s.image).slice(0, 6)`)
 
-    // =====================================================
-    // 5 · 품목기본정보관리 [상세] 입력
-    // =====================================================
-    {
-      id: 'item-basic-detail',
-      tag: 'STEP 5',
-      title: '[품목기본정보관리] — [상세] 탭 입력',
-      lead: '발번받은 코드를 붙여넣고 관리유형·명칭·약칭·담당·전광판품명을 입력합니다. 노란색 필드가 필수 입력 항목입니다.',
-      image: 'assets/erp/05_item_basic_info.png',
-      imageAspect: 1024/835,
-      hotspots: [
-        { id:'a', num:1, top:'18.5%', left:'15.7%', width:'14.2%', height:'3%',
-          title:'품목코드 붙여넣기',
-          body:(<>발번받은 코드를 <span className="code">Ctrl+V</span>로 붙여넣습니다.<br/><br/>
-            뒤의 <span className="code">-3-01</span>은 ERP가 <b>자동 부여</b>합니다. 직접 입력하지 마세요. 이 최종 코드가 곧 <b>약액코드</b>입니다.</>)
-        },
-        { id:'b', num:2, top:'27.3%', left:'15.7%', width:'43%', height:'2.8%',
-          title:'관리유형 선택',
-          body:(<>대분류 코드를 선택합니다. 예: <span className="code">3AA1: 화장품 &gt; 물티슈 &gt; 일반</span><br/><br/>이 값에 따라 이후 검사 항목과 원가 계산 로직이 결정됩니다.</>)
-        },
-        { id:'c', num:3, top:'34.4%', left:'15.7%', width:'43%', height:'2.8%',
-          title:'품목명칭 입력',
-          body:(<>사양서 기준 정식 명칭을 입력합니다. 예: <span className="code">리꼬 레시피 약액</span></>)
-        },
-        { id:'d', num:4, top:'41%', left:'15.7%', width:'43%', height:'2.8%',
-          title:'품목약칭 입력',
-          body:(<>보고서·그리드에서 쓰이는 짧은 이름을 입력합니다. 명칭과 동일하게 두어도 되지만, 긴 경우 반드시 줄여 쓰세요.</>)
-        },
-        { id:'e', num:5, top:'64.9%', left:'82.3%', width:'13.1%', height:'2.8%',
-          title:'현재담당: S0 연구파트',
-          body:(<>등록 시점에는 반드시 <span className="code">S0 연구파트</span>로 지정합니다. 처방 확정 후 처방파트로 이관됩니다.</>)
-        },
-        { id:'f', num:6, top:'72.1%', left:'15.9%', width:'15.8%', height:'2.5%',
-          title:'전광판품명 확인',
-          body:(<>생산 현장 전광판에 표시되는 이름입니다. 명칭·약칭 입력 후 자동 반영되지만, 반드시 <b>육안으로 다시 한 번 확인</b>하세요.</>)
-        },
-      ],
-      tip: {
-        title: '주의사항',
-        body: (<>
-          <ul>
-            <li><span className="code">-3-01</span>은 자동부여 — 절대 손대지 마세요</li>
-            <li>노란색 필드(품목코드·관리유형·품목명칭·품목약칭)는 <b>모두 필수</b></li>
-            <li>담당을 S0 이외로 두면 이후 처방 등록 단계에서 <b>권한 오류</b>가 납니다</li>
-            <li>저장 후 명칭·약칭·전광판품명이 <b>바로 반영 안 될 때</b>가 있음 → 창을 닫았다 다시 열어 재저장</li>
-            <li>저장 완료 후 <b>NAS 제품마스터 리스트</b>에도 이번 약액코드를 반드시 추가</li>
-          </ul>
-        </>)
-      }
-    },
+### Flow 화면 (`kind: 'flow'`, STEP 1)
 
-    // =====================================================
-    // 6 · 설계변경관리 진입
-    // =====================================================
-    {
-      id: 'design-change-empty',
-      tag: 'STEP 6',
-      title: '[설계변경관리(제조처방)] 열기',
-      lead: '이제 발번된 약액코드로 처방을 등록합니다. 메인메뉴에서 [설계변경관리(제조처방)] (PM10320U)을 실행하세요.',
-      image: 'assets/erp/06_design_change_empty.png',
-      imageAspect: 1024/695,
-      hotspots: [
-        { id:'a', num:1, top:'16.5%', left:'6.8%', width:'10.5%', height:'2.6%',
-          title:'품목코드 입력란',
-          body:(<>화면 좌측 상단 <span className="code">품목코드</span> 필드에 커서를 놓습니다. 옆의 물음표 아이콘 <span className="code">?</span>을 클릭하거나 <span className="code">F2</span>를 눌러 품목코드HELP 창을 엽니다.</>)
-        },
-        { id:'b', num:2, top:'16.5%', left:'17.6%', width:'2.2%', height:'2.6%',
-          title:'HELP 아이콘 클릭',
-          body:(<>파란색 물음표 아이콘을 클릭하면 <b>[품목코드HELP]</b> 팝업이 열립니다. 여기서 약액코드를 검색해 지정합니다.</>)
-        },
-      ],
-      tip: {
-        title: '툴바 이해',
-        body: (<>상단 툴바의 <span className="code">조회</span>·<span className="code">작성</span>·<span className="code">수정</span>·<span className="code">삭제</span> 버튼은 <b>회색으로 비활성화</b> 상태입니다. 품목코드가 입력되어야 활성화됩니다.</>)
-      }
-    },
+- 세로 스택된 5개 노드 카드: `[번호 뱃지 52px] [태그 + 제목 + 설명]`
+- 각 노드 사이에 `↓` 화살표
+- 하단에 Tip 박스
 
-    // =====================================================
-    // 7 · 품목코드HELP → 명칭 검색
-    // =====================================================
-    {
-      id: 'item-code-help',
-      tag: 'STEP 7',
-      title: '[품목코드HELP]에서 약액 검색',
-      lead: '팝업창이 열리면 품목유형을 [내용물]로 지정하고, 명칭 옵션을 선택한 뒤 검색어를 입력해 조회합니다.',
-      image: 'assets/erp/08_content_search_result.png',
-      imageAspect: 1024/697,
-      hotspots: [
-        { id:'a', num:1, top:'25.5%', left:'36%', width:'12%', height:'2.8%',
-          title:'품목유형: 내용물',
-          body:(<>드롭다운에서 <span className="code">내용물</span>을 선택합니다.</>)
-        },
-        { id:'b', num:2, top:'30.5%', left:'31%', width:'5%', height:'2.8%',
-          title:'검색 옵션: [명칭] 선택',
-          body:(<>기본값 <span className="code">코드</span> 대신 <span className="code">명칭</span> 라디오를 선택하면 품명으로 검색할 수 있습니다.</>)
-        },
-        { id:'c', num:3, top:'30.5%', left:'39%', width:'22%', height:'2.8%',
-          title:'검색어 입력 → Enter',
-          body:(<>제품 키워드를 입력하고 Enter를 누릅니다. 예: <span className="code">리꼬</span></>)
-        },
-        { id:'d', num:4, top:'50.5%', left:'26%', width:'45%', height:'3%',
-          title:'약액 행 더블클릭',
-          body:(<>결과 목록에서 이번에 등록한 약액 행을 <b>더블클릭</b>하면 팝업이 닫히면서 원래 화면의 품목코드 필드에 값이 채워집니다.</>)
-        },
-      ],
-      tip: {
-        title: '검색 옵션',
-        body: (<><b>단종품 제외</b> 체크는 기본 켜져 있어 <b>사용 중인 약액만</b> 표시됩니다. 단종된 처방을 참고해야 할 때만 해제하세요.</>)
-      }
-    },
+### Interactive 화면 (일반 스텝)
 
-    // =====================================================
-    // 8 · 설계변경관리 조회 결과 & 이력
-    // =====================================================
-    {
-      id: 'design-change-history',
-      tag: 'STEP 8',
-      title: '조회 결과 & 설계변경 이력 확인',
-      lead: '품목코드가 채워지고 [조회]를 실행하면 기존 설계변경 이력이 표시됩니다. 신규 등록이라면 목록이 비어 있고, 기존 처방을 수정하는 경우라면 이력 행을 확인할 수 있습니다.',
-      image: 'assets/erp/10_design_history.png',
-      imageAspect: 1024/695,
-      hotspots: [
-        { id:'a', num:1, top:'16.3%', left:'6.8%', width:'10.5%', height:'2.6%',
-          title:'품목코드 확인',
-          body:(<>이전 스텝에서 선택한 <b>약액코드</b>가 채워져 있는지 확인합니다. (예: <span className="code">100001021301</span>)</>)
-        },
-        { id:'b', num:2, top:'16.3%', left:'36%', width:'5%', height:'2.6%',
-          title:'현재EC# 확인',
-          body:(<><b>Engineering Change 번호</b>가 표시됩니다. 신규 등록 시 자동으로 다음 번호가 부여됩니다.</>)
-        },
-        { id:'c', num:3, top:'30.5%', left:'0%', width:'100%', height:'25%',
-          title:'설계변경 이력 목록',
-          body:(<>EC# 순으로 이력이 표시됩니다. <b>EC# 000 New</b>가 최초 등록이며, 이후 개선·조정 이력이 누적됩니다.<br/><br/>
-            새 설계변경을 시작하려면 상단 <span className="code">작성</span> 버튼을 클릭하세요.</>)
-        },
-        { id:'d', num:4, top:'6.5%', left:'6.5%', width:'5%', height:'7%',
-          title:'[작성] 버튼 클릭',
-          body:(<>상단 툴바의 <span className="code">작성</span> 버튼(연필 아이콘)을 클릭하면 신규 설계변경 등록 화면으로 이동합니다. 다음 스텝에서 처방을 작성합니다.</>)
-        },
-      ],
-      tip: {
-        title: '이력 관리',
-        body: (<><b>변경이유</b>·<b>진행상태</b>·<b>원가/견적/발주/생산</b> 체크 여부가 한눈에 표시됩니다. 이전 이력을 참고할 때 <b>변경내용</b> 컬럼의 diff 표기(예: <span className="code">0.1% → 0.25%</span>)를 유심히 보세요.</>)
-      }
-    },
+- **Step Header**: eyebrow chip(STEP N · N/12) + h1 (28px, 700, -0.03em letter-spacing) + lead (15px, 780px max-width)
+- **Instructions grid**: 카드 리스트. `grid-template-columns: repeat(auto-fit, minmax(240px, 1fr))`. 카드마다 번호 뱃지 + 짧은 라벨. 클릭 시 해당 hotspot 줌 열림.
+- **ERP Stage**:
+  - 6px 패딩의 white surface에 border-radius 14px
+  - 내부 image-wrap은 `aspect-ratio: <imageAspect>` — 이미지 크기 유지
+  - Hotspot은 `<button>` 절대 배치. hotspot 자체는 투명 (테두리 hover 시 dashed), hotspot 내부에 `.hotspot-marker` (28px 원형 청록 뱃지)
+  - 마커 위치는 hotspot 좌상단 모서리 중심 (transform: translate(-50%, -50%))
+  - 이미지 왼쪽 가장자리(<5% left) hotspot은 `.marker-right` 클래스 → 마커를 hotspot 안쪽으로 이동
+  - 넓은 hotspot(>60% width)은 `.marker-top` 클래스 → 좌상단 안쪽 배치
+- **Tip Box**: `--warn-bg` 배경, ⓘ 아이콘, 제목 + 본문
+- **Step Nav**: 좌측 [← 이전], 중앙 진행률 pill (`5 / 12`), 우측 [다음 →] (모든 hotspot 완료 시 pulse 애니메이션)
 
-    // =====================================================
-    // 9 · 설계변경등록 — 처방공정도 & 투입원료
-    // =====================================================
-    {
-      id: 'design-register',
-      tag: 'STEP 9',
-      title: '[설계변경등록] — 처방공정도 & 투입원료',
-      lead: '설계변경등록 화면으로 진입했습니다. 좌측은 공정 트리, 우측은 투입원료 리스트입니다. 이제 처방 구조를 만듭니다.',
-      image: 'assets/erp/11_design_register.png',
-      imageAspect: 1024/717,
-      hotspots: [
-        { id:'a', num:1, top:'26.5%', left:'0.5%', width:'4.5%', height:'5.5%',
-          title:'공정추가',
-          body:(<>좌측 상단의 <span className="code">공정추가</span> 버튼으로 <b>[]투입 / []투입 후 교반</b> 등 공정 블록을 하나씩 추가합니다.<br/><br/>
-            <b>동레벨</b>: 같은 처방 내 병렬 공정<br/>
-            <b>하위레벨</b>: 예비 용해 등 서브 공정</>)
-        },
-        { id:'b', num:2, top:'27%', left:'5%', width:'13%', height:'7%',
-          title:'동레벨 / 하위레벨 선택',
-          body:(<>공정 추가 방향을 라디오로 선택합니다. 잘못 추가한 경우 <span className="code">공정삭제</span> 버튼으로 제거할 수 있습니다.</>)
-        },
-        { id:'c', num:3, top:'36%', left:'1.5%', width:'44%', height:'43%',
-          title:'공정 트리 구조 확인',
-          body:(<>좌측 트리에 <b>공정별로 투입되는 원료</b>가 표시됩니다. 각 원료 앞의 3자리 번호(예: <span className="code">[010]</span>)는 <b>투입 순서</b>입니다.<br/><br/>
-            원료를 클릭하면 하단의 <b>단위작업코드/작업소요시간/제조온도/회전수</b> 필드에 상세 조건을 입력할 수 있습니다.</>)
-        },
-        { id:'d', num:4, top:'27%', left:'26%', width:'14%', height:'7%',
-          title:'원료 명칭 보기',
-          body:(<><span className="code">품명</span> / <span className="code">허가명</span> 라디오로 표시 방식을 전환합니다. 일반적으로 <b>품명</b>으로 두고 작업합니다.</>)
-        },
-        { id:'e', num:5, top:'36%', left:'44.7%', width:'54.3%', height:'43%',
-          title:'투입원료 리스트',
-          body:(<>우측 그리드에서 <b>순번·품목코드·품명·합량(%)·투입 여부</b>를 확인합니다. 합량 컬럼의 <b>합계는 반드시 100.00%</b>여야 합니다.<br/><br/>
-            노란색으로 강조된 행은 <b>변경/추가된 원료</b>입니다.</>)
-        },
-        { id:'f', num:6, top:'18%', left:'57%', width:'9%', height:'4.5%',
-          title:'처방확정',
-          body:(<>모든 작업이 끝나면 <span className="code">처방확정</span> 버튼을 클릭합니다. 확정 후에는 처방파트로 이관되어 수정에 별도 승인이 필요합니다.</>)
-        },
-      ],
-      tip: {
-        title: '처방 작성 원칙',
-        body: (<>
-          <ul>
-            <li><b>처방복사 우선</b> — 유사 처방이 있으면 반드시 복사부터</li>
-            <li>공정 순서: <b>수상 → 유효성분 → 활성성분 → 보존제·향료</b> 순 준수</li>
-            <li>저장 전 <b>합계 100.00%</b> 검증 필수 — 소수점 오차는 정제수로 조정</li>
-            <li>작업조건(온도·회전수·시간)은 <b>실제 설비 스펙</b>과 매칭 확인</li>
-          </ul>
-        </>)
-      }
-    },
+### Zoom Overlay
 
-    // =====================================================
-    // 10 · 투입원료 탭 상세 테이블
-    // =====================================================
-    {
-      id: 'ingredient-table',
-      tag: 'STEP 10',
-      title: '[투입원료] 탭 — 상세 테이블 관리',
-      lead: '투입원료 탭에서는 원료를 직접 추가/삭제하고 유사 처방을 복사해 옵니다. 이 화면에서 대부분의 작성이 이루어집니다.',
-      image: 'assets/erp/12_process_diagram.png',
-      imageAspect: 1024/718,
-      hotspots: [
-        { id:'a', num:1, top:'31%', left:'0.5%', width:'3.5%', height:'3.6%',
-          title:'추가',
-          body:(<>새로운 원료 행을 하단에 추가합니다. 이후 <b>구성품코드</b>를 입력하거나 HELP 검색으로 원료를 지정합니다.</>)
-        },
-        { id:'b', num:2, top:'31%', left:'4%', width:'4%', height:'3.6%',
-          title:'삭제',
-          body:(<>선택한 원료 행을 삭제합니다. 삭제 시 <b>합량 100%</b>가 어긋나므로 반드시 다른 원료로 재조정하세요.</>)
-        },
-        { id:'c', num:3, top:'31%', left:'8%', width:'6%', height:'3.6%',
-          title:'처방복사 (핵심)',
-          body:(<>가장 자주 사용하는 기능입니다. <b>유사한 기존 처방</b>을 통째로 복사해 옵니다.<br/><br/>
-            팝업에서 원본 약액코드를 선택하면 그 처방의 모든 원료가 이 화면으로 복사됩니다. 이후 <b>추가/삭제</b>로 이번 제품에 맞게 조정하세요.</>)
-        },
-        { id:'d', num:4, top:'31%', left:'33.7%', width:'15%', height:'3.6%',
-          title:'합량계 = 100.00%',
-          body:(<><b>절대적 검증 항목</b>입니다. 저장 전 반드시 <span className="code">100.0000000</span>인지 확인하세요. 오차 발생 시 정제수(6000001)의 합량을 미세 조정합니다.</>)
-        },
-        { id:'e', num:5, top:'31%', left:'58.4%', width:'17%', height:'3.6%',
-          title:'단위원가 가계산',
-          body:(<>모든 원료 입력 후 이 버튼을 클릭하면 <b>원/kg 단위원가</b>가 오른쪽에 계산되어 표시됩니다. 원가 이슈가 있으면 여기서 즉시 확인합니다.</>)
-        },
-        { id:'f', num:6, top:'38%', left:'0%', width:'100%', height:'42%',
-          title:'원료 그리드',
-          body:(<>각 원료 행에서 다음을 확인·수정합니다:<br/><br/>
-            • <b>합량(%)</b>: 처방 내 비율 (소수점 7자리)<br/>
-            • <b>LOSS%</b>: 공정 손실률<br/>
-            • <b>투입시기</b>: 공정 번호(01, 02, 03…)와 매칭<br/>
-            • <b>적용개시일 / 종료일</b>: 이 원료의 유효 기간<br/>
-            • <b>DEL</b> 체크: 다음 저장 시 해당 행 삭제</>)
-        },
-      ],
-      tip: {
-        title: '자주 실수하는 지점',
-        body: (<>
-          <ul>
-            <li>처방복사 후 <b>합계 검증 없이 저장</b> → 합계가 100%가 아닌 채로 저장되어 나중에 발견되면 재작업</li>
-            <li><b>투입시기</b>를 공정 트리와 다르게 지정 → 실제 생산 순서가 어긋남</li>
-            <li>DEL 체크 후 <b>저장하지 않음</b> → 실제로 삭제되지 않고 남아있음</li>
-          </ul>
-        </>)
-      }
-    },
+핫스팟 클릭 시 뜨는 모달. 좌측 480×300 이미지 확대 프리뷰 + 우측 상세 설명.
+- 이미지는 hotspot 중심이 프리뷰 정중앙에 오도록 scale·translate 계산 (`components/ZoomOverlay.jsx` 참조)
+- 하이라이트 사각형: 청록 테두리 2.5px + 화이트 outer-glow (box-shadow: 0 0 0 9999px rgba(255,255,255,.35))
+- 하단 dots + [이전/다음] 버튼
+- 키보드: Esc 닫기 · ← → 이동 · Enter 다음
 
-    // =====================================================
-    // 11 · 특이사항 탭
-    // =====================================================
-    {
-      id: 'special-notes',
-      tag: 'STEP 11',
-      title: '[특이사항] 탭 — 제조 유의사항 기록',
-      lead: '처방운용팀이 실제 생산 시 참고할 <b>유의사항</b>과 <b>표시성분 제약</b>을 기록합니다.',
-      image: 'assets/erp/13_special_notes.png',
-      imageAspect: 1024/717,
-      hotspots: [
-        { id:'a', num:1, top:'30%', left:'0%', width:'49%', height:'20%',
-          title:'제조시 주의사항',
-          body:(<>온도·시간·투입 순서 등 <b>공정에서 특별히 주의할 점</b>을 기록합니다. 처방운용팀이 알아볼 수 있도록 <b>쉬운 한국어</b>로 작성하세요.<br/><br/>
-            예: "60℃ 이상 가열 금지 (성분 파괴)", "B상 투입 시 10분 이상 교반 후 C상 진행"</>)
-        },
-        { id:'b', num:2, top:'30%', left:'50%', width:'49%', height:'20%',
-          title:'제조시 주의사항 (영문, 참조용)',
-          body:(<>해외 OEM/ODM 프로젝트 시 사용됩니다. 국내 전용 처방은 <b>비워도 무방</b>합니다.</>)
-        },
-        { id:'c', num:3, top:'51%', left:'0%', width:'49%', height:'8%',
-          title:'적용 Complex',
-          body:(<>해당 처방이 참여하는 컴플렉스 그룹이 있으면 기재합니다.</>)
-        },
-        { id:'d', num:4, top:'51%', left:'50%', width:'49%', height:'8%',
-          title:'Lab Number History',
-          body:(<>사내 랩 실험 번호 이력을 기재합니다. <b>처방 근거 자료</b> 역할을 하므로 자세히 남기세요.</>)
-        },
-        { id:'e', num:5, top:'60%', left:'50%', width:'49%', height:'5%',
-          title:'제조/충전 특이사항 (벌크 라벨용)',
-          body:(<>벌크 라벨에 <b>2줄로 표기</b>되므로 <b>50 글자 이하</b>로 압축해서 작성합니다. 예: "저온보관, 사용 전 흔들 것"</>)
-        },
-        { id:'f', num:6, top:'68%', left:'0%', width:'100%', height:'22%',
-          title:'국가별 성분 제약사항',
-          body:(<>수출 대상국별로 <b>배합금지·한도</b> 있는 성분이 있으면 기재합니다. 여기 등록된 정보는 규제 대응의 근거가 되므로 <b>사내 규제팀과 협의</b> 후 입력하세요.</>)
-        },
-      ],
-      tip: {
-        title: '작성 원칙',
-        body: (<>
-          이 화면은 <b>처방운용팀 · 생산 현장 · 규제팀</b>이 모두 참고합니다. 전문 용어를 남발하지 말고, <b>새로 입사한 오퍼레이터도 이해할 수 있는 수준</b>으로 작성하세요.
-        </>)
-      }
-    },
+### 완료 화면 (`kind: 'complete'`)
 
-    // =====================================================
-    // 12 · 검사SPEC 탭
-    // =====================================================
-    {
-      id: 'inspection-spec',
-      tag: 'STEP 12',
-      title: '[검사SPEC] 탭 — 성상·pH 기준 등록',
-      lead: '완제품 기준의 검사 규격을 등록합니다. 성상과 pH는 <b>필수 항목</b>이며, 짠액-완제품 기준으로 값을 넣습니다.',
-      image: 'assets/erp/14_inspection_spec.png',
-      imageAspect: 1024/719,
-      hotspots: [
-        { id:'a', num:1, top:'30%', left:'0.5%', width:'4%', height:'3.5%',
-          title:'복사',
-          body:(<>유사한 약액의 검사 SPEC을 통째로 복사해 옵니다. 물티슈 계열은 대부분 <b>성상 + pH</b> 조합이 유사하므로 복사 후 미세 조정만 하면 됩니다.</>)
-        },
-        { id:'b', num:2, top:'30%', left:'5%', width:'9%', height:'3.5%',
-          title:'추가 / 삭제',
-          body:(<>필요한 검사 항목을 추가하거나 불필요한 항목을 삭제합니다.</>)
-        },
-        { id:'c', num:3, top:'37%', left:'0%', width:'100%', height:'3.5%',
-          title:'성상 (Appearance)',
-          body:(<>내용물의 겉모습을 기재합니다. 예: <span className="code">액체</span>, <span className="code">무색 투명, 특이취 없음</span><br/><br/>
-            결과유형은 <span className="code">비수치</span>로 두고, 검사 규격란에 서술형으로 입력합니다.</>)
-        },
-        { id:'d', num:4, top:'40.5%', left:'0%', width:'100%', height:'3.5%',
-          title:'pH — 수치 범위',
-          body:(<>완제품 기준 pH 범위를 <b>기준치 ± 허용치</b> 형태로 입력합니다. 예: <span className="code">4.20 ± 1.00</span> (즉, 3.2 ~ 5.2)<br/><br/>
-            <b>기준치</b>·<b>최소허용치</b>·<b>최대허용치</b>·<b>필수 여부</b> 컬럼을 모두 채워야 합니다.<br/><br/>
-            25℃ 기준값을 사용하세요.</>)
-        },
-        { id:'e', num:5, top:'8.5%', left:'6.5%', width:'4.5%', height:'6.5%',
-          title:'저장',
-          body:(<>모든 검사 항목 입력 후 저장합니다. 저장 후 반드시 <b>[기본정보] 탭으로 돌아가</b> 처방상태·명칭이 유지되는지 재확인하세요.</>)
-        },
-      ],
-      tip: {
-        title: '작성 순서 (권장)',
-        body: (<>
-          <ol style={{margin:0, paddingLeft:'18px'}}>
-            <li>[투입원료] 탭에서 처방 완성 → 저장</li>
-            <li>[처방공정도] 탭에서 공정 배치 확인</li>
-            <li>[특이사항] 탭에서 유의사항 기재</li>
-            <li>[검사SPEC] 탭에서 성상·pH 등록 (지금)</li>
-            <li>[기본정보] 탭으로 돌아가 <span className="code">원가·견적·발주·생산</span> 체크</li>
-            <li><span className="code">처방확정</span> 클릭 → 완료</li>
-          </ol>
-        </>)
-      }
-    },
+- 96px 원형 그라디언트 배지 + ✓ 아이콘 (pop-in 애니메이션)
+- Confetti (60조각, 7개 브랜드 컬러 랜덤, 3s 낙하)
+- 실무 체크리스트 (13항목, 초록 체크 원)
+- [이전] · [🖨 체크리스트 인쇄] · [처음부터 다시]
 
-    // =====================================================
-    // 13 · COMPLETE
-    // =====================================================
-    {
-      id: 'complete',
-      kind: 'complete',
-      tag: 'COMPLETE',
-      title: '완료',
-      checklist: [
-        '영업팀 사양서·ingredient list 접수 확인',
-        '코드관리 담당자에게 코드 발번 요청 & 회신 코드 수령',
-        '품목정보조회v1 → 우클릭 → 품목기본정보 실행',
-        '품목코드 붙여넣기 (-3-01 자동부여)',
-        '관리유형 · 명칭 · 약칭 · 담당(S0 연구파트) · 전광판품명 입력',
-        'NAS 제품마스터 리스트에 약액코드 등록',
-        '설계변경관리 → 품목코드HELP로 약액 지정',
-        '[작성]으로 신규 설계변경 시작',
-        '처방복사로 유사 처방 불러오기 → 추가/삭제로 조정',
-        '합량계 = 100.00% 검증',
-        '처방공정도에서 공정별 조건(온도·회전수·시간) 입력',
-        '특이사항 · 검사SPEC(성상 · pH) 등록',
-        '원가·견적·발주·생산 체크 후 [처방확정] 클릭',
-      ]
-    },
-  ]
-};
+---
 
-window.COURSE_YAKAEK = COURSE_YAKAEK;
+## Interactions & Behavior
+
+### 스텝 이동
+- **키보드**: ←/→ 스텝 이동 (입력 필드 포커스 중이나 zoom overlay 열려있을 땐 비활성)
+- **사이드바 클릭**: 자유롭게 스텝 점프 (`onSelect(idx)`)
+- **[다음] 버튼**: 현재 스텝의 모든 hotspot을 done 처리 + `__visited` 마크 + 다음 스텝으로 이동
+- 이동 시 `.main` 스크롤 top으로 리셋
+
+### 핫스팟 클릭
+- 클릭 → 해당 hotspot을 done 처리 → ZoomOverlay 오픈
+- ZoomOverlay 내부에서 이전/다음으로 다른 hotspot 순회 가능
+- 마지막 hotspot의 [다음] 버튼은 overlay 닫힘
+
+### 진행률 계산
+- 전체 hotspot 수 대비 완료 수 (%)
+- 상단 progress bar에 그라디언트 fill (drop-2 → drop-3 → drop-4)
+- 각 스텝 사이드바 항목마다 mini progress bar (`<step>/<total>`)
+
+### 애니메이션 (지속시간·이징)
+- **pulse-ring** (hotspot 마커): 2s cubic-bezier(.4,0,.4,1) infinite
+- **bounce-marker** (다음 대상 hotspot): 1.6s ease-in-out infinite
+- **pulse-num** (다음 대상 instruction 뱃지): 1.8s infinite
+- **pulse-btn** (모든 hotspot 완료 후 다음 버튼): 1.8s infinite
+- **zoom-in** (overlay 오픈): .3s cubic-bezier(.2,.9,.3,1.15)
+- **rect-pulse** (overlay 하이라이트 박스): 2s ease-in-out infinite
+- **intro-logo-in**: .6s cubic-bezier(.2,.9,.3,1.4) 0.1s
+- **preview-in** (인트로 카드): .5s cubic-bezier(.2,.9,.3,1), 순차 delay 0.07s
+- **confetti-fall**: 2.5~4.5s linear (랜덤)
+
+### 상태 저장 (localStorage)
+- 키: `hanul-erp-course-<courseId>`
+- 저장 값: `{ currentIdx, doneHotspots }`
+- 저장 시점: currentIdx 또는 doneHotspots 변경 시
+- 로드: 앱 마운트 시 초기 state로 사용
+- 초기화 버튼: 확인 → `localStorage.removeItem(...)` + state 리셋
+
+### 반응형
+- **최대 1100px**: zoom overlay가 세로로 변경 (grid-template-columns: 1fr). 프리뷰 높이 240px.
+- **최대 800px**: 사이드바가 오프캔버스, `.sidebar-toggle` 버튼 표시. 브랜드 텍스트 숨김.
+
+---
+
+## State Management
+
+전역 state (App 컴포넌트 안, `useState`):
+
+```ts
+{
+  courseId: string,                // 현재 코스 (기본 yakaek-prescription)
+  currentIdx: number,              // 현재 스텝 인덱스 (0 ~ steps.length-1)
+  doneHotspots: {                  // 스텝별 완료 hotspot 맵
+    [stepId: string]: {
+      [hotspotId: string]: true,
+      __visited?: true             // flow/intro 스텝용 방문 플래그
+    }
+  },
+  zoomHsIdx: number,               // 현재 오픈된 zoom hotspot 인덱스 (-1이면 닫힘)
+  sidebarOpen: boolean,            // 모바일 사이드바
+  // Tweaks
+  t: {
+    layout: 'sidebar' | 'topbar',
+    showTips: boolean,
+    pulseMarkers: boolean,
+    showThumbs: boolean,
+  }
+}
+```
+
+**데이터 소스**: 없음 (모든 코스 데이터는 정적 JSX)
+**API 통신**: 없음
+**인증**: 없음
+
+프로덕션 확장 시 고려사항:
+- 코스 데이터를 CMS(예: Sanity, Contentful) 또는 백엔드 JSON API로 분리
+- 진행률을 서버에 저장하여 여러 기기에서 이어보기 가능하게
+- 학습 완료 인증서 발급 로직
+
+---
+
+## Design Tokens
+
+### 컬러 (oklch 기반)
+
+```css
+/* 브랜드 청록 */
+--brand-900: oklch(38% 0.06 195);
+--brand-800: oklch(43% 0.08 195);   /* CTA 버튼 배경 */
+--brand-700: oklch(50% 0.10 195);   /* 마커, 액티브 상태 */
+--brand-600: oklch(58% 0.11 195);   /* 하이라이트 */
+--brand-500: oklch(66% 0.11 195);
+--brand-300: oklch(82% 0.07 195);
+--brand-100: oklch(94% 0.03 195);   /* chip 배경, code 배경 */
+--brand-50:  oklch(97.5% 0.015 195); /* hover 배경 */
+
+/* 7색 물방울 (한울생약 홈페이지 오마주) */
+--drop-1: oklch(70% 0.14 220);  /* 파랑 */
+--drop-2: oklch(72% 0.13 195);  /* 청록 */
+--drop-3: oklch(74% 0.14 160);  /* 초록-청 */
+--drop-4: oklch(78% 0.14 130);  /* 라임 */
+--drop-5: oklch(80% 0.14 90);   /* 골드 */
+--drop-6: oklch(72% 0.15 45);   /* 오렌지 */
+--drop-7: oklch(68% 0.16 15);   /* 코랄 */
+
+/* 뉴트럴 */
+--bg:            oklch(98.5% 0.005 195);   /* 앱 배경 */
+--bg-2:          oklch(96.5% 0.008 195);
+--surface:       #ffffff;
+--surface-2:     oklch(96.5% 0.008 195);
+--border:        oklch(90% 0.012 195);
+--border-strong: oklch(82% 0.02 195);
+--ink-900:       oklch(22% 0.02 220);      /* 본문 */
+--ink-800:       oklch(30% 0.02 220);
+--ink-700:       oklch(40% 0.02 220);
+--ink-500:       oklch(55% 0.015 220);
+--ink-400:       oklch(68% 0.012 220);
+--ink-300:       oklch(80% 0.008 220);
+
+/* 액센트 */
+--warn:        oklch(72% 0.15 60);   /* Tip 아이콘 */
+--warn-bg:     oklch(97% 0.035 75);
+--warn-border: oklch(88% 0.055 75);
+--warn-ink:    oklch(42% 0.11 60);
+--ok:          oklch(62% 0.14 155);  /* 완료 체크 */
+--ok-bg:       oklch(96% 0.04 155);
+```
+
+RGB/HEX 근사값 (oklch를 지원 안 하는 도구용):
+- brand-700 ≈ `#2E7B87`
+- brand-800 ≈ `#256671`
+- brand-100 ≈ `#DFEDEF`
+- ok ≈ `#42A65C`
+- warn ≈ `#D9924D`
+- ink-900 ≈ `#1A2530`
+
+### 타이포그래피
+
+```css
+--font-sans: "Pretendard Variable", Pretendard, -apple-system, system-ui, sans-serif;
+--font-mono: "JetBrains Mono", ui-monospace, "SF Mono", Menlo, monospace;
+```
+
+폰트 로드:
+- Pretendard: `https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css`
+- JetBrains Mono: Google Fonts `family=JetBrains+Mono:wght@400;500;600;700`
+
+타입 스케일:
+| 용도                | size    | weight | letter-spacing |
+|---------------------|---------|--------|----------------|
+| Intro 제목          | 42px    | 800    | -0.035em       |
+| Complete 제목       | 34px    | 800    | -0.03em        |
+| Step 제목 (h1)      | 28px    | 700    | -0.03em        |
+| Zoom 카드 제목      | 20px    | 700    | -0.025em       |
+| Complete 요약 h3    | 16px    | 700    | -0.02em        |
+| 사이드바 h2         | 16px    | 700    | -0.025em       |
+| Flow 노드 제목      | 16px    | 700    | -0.02em        |
+| 본문 (lead)         | 15~16.5px | 400  | -0.005em       |
+| Step 카드 라벨      | 13px    | 500    | 기본           |
+| Chip / Tag          | 10~11px | 600~700| 0.03~0.05em    |
+| Kbd                 | 10.5px  | 500    | mono           |
+| Code                | 12~13px | 500    | mono           |
+
+### 스페이싱 (관례)
+
+- 컨테이너 padding: 32px 40px (main-inner)
+- 카드 padding: 10~16px
+- 카드 간 gap: 8~12px
+- 섹션 마진: 22~32px
+
+### 라운드
+
+```css
+--radius-sm: 6px;   /* 버튼, 태그 */
+--radius:    10px;  /* 카드 */
+--radius-lg: 14px;  /* 스테이지, 완료 요약 */
+--radius-xl: 20px;  /* 줌 오버레이 카드 */
+```
+
+### 그림자
+
+```css
+--shadow-1: 0 1px 2px rgba(15, 40, 60, .04), 0 1px 3px rgba(15, 40, 60, .05);
+--shadow-2: 0 4px 12px rgba(15, 40, 60, .06), 0 2px 6px rgba(15, 40, 60, .04);
+--shadow-3: 0 20px 40px -12px rgba(15, 40, 60, .18), 0 8px 20px rgba(15, 40, 60, .08);
+--shadow-4: 0 32px 64px -16px rgba(15, 40, 60, .3), 0 12px 24px rgba(15, 40, 60, .12);
+```
+
+---
+
+## Assets
+
+### 로고
+- `assets/hanul-logo.png` (80×66, PNG, alpha 채널) — 7개 물방울 로고
+  - 흰색 배경 누끼 처리 완료 (완전 투명 + 경계 알파 부드럽게)
+  - 헤더에 34px 높이, 인트로에 84px 높이로 사용
+
+### ERP 스크린샷 (14장, 모두 PNG, alpha)
+`assets/erp/` 디렉토리:
+
+| 파일명                          | 크기        | 용도                                    |
+|---------------------------------|-------------|----------------------------------------|
+| 01_main_menu.png                | 1024×775    | STEP 2 — 메인메뉴 iEMenu               |
+| 02_item_query_empty.png         | 1024×768    | STEP 3 — 품목정보조회 (빈 조회창)      |
+| 03_item_query_result.png        | 1024×768    | (인트로 preview용, 스텝엔 미사용)      |
+| 04_rightclick_menu.png          | 1024×770    | STEP 4 — 우클릭 컨텍스트 메뉴          |
+| 05_item_basic_info.png          | 1024×835    | STEP 5 — 품목기본정보관리              |
+| 06_design_change_empty.png      | 1024×695    | STEP 6 — 설계변경관리(제조처방)        |
+| 07_item_code_help.png           | 1024×697    | (참고용, 스텝엔 08 사용)               |
+| 08_content_search_result.png    | 1024×697    | STEP 7 — 품목코드HELP 검색결과         |
+| 09_design_change_result.png     | 1024×696    | (참고용)                               |
+| 10_design_history.png           | 1024×695    | STEP 8 — 설계변경 이력                 |
+| 11_design_register.png          | 1024×717    | STEP 9 — 설계변경등록 처방공정도       |
+| 12_process_diagram.png          | 1024×718    | STEP 10 — 투입원료 탭                  |
+| 13_special_notes.png            | 1024×717    | STEP 11 — 특이사항 탭                  |
+| 14_inspection_spec.png          | 1024×719    | STEP 12 — 검사SPEC 탭                  |
+
+**모든 이미지에 자동 감지·마스킹 처리 적용됨**:
+- 우측 하단의 사용자 이름 ("윤주현") 완전 제거 → 상태바 배경색으로 덮음
+- 07·08번은 팝업 내부의 두 번째 사용자 이름까지 이중 제거
+
+---
+
+## Interaction Sub-components 참고 위치
+
+- **Hotspot** — `components/Hotspot.jsx`
+  - Props: `{ hs, done, isNext, onClick }`
+  - hotspot의 left · width 값으로 자동으로 `.marker-right` / `.marker-top` 클래스 부여
+
+- **ZoomOverlay** — `components/ZoomOverlay.jsx`
+  - Props: `{ step, hsIdx, onClose, onGoto }`
+  - hotspot 좌표 → 480×300 프리뷰에 scale·translate 계산 (line 60~90)
+  - 키보드 핸들러(Esc, ←/→, Enter) 자체 관리
+
+- **StepView (라우터)** — `components/StepView.jsx`
+  - kind별로 IntroView / FlowView / CompleteView / InteractiveView 렌더
+  - IntroView는 로고 + 메타 + preview 카드
+  - InteractiveView는 헤더 + instruction 리스트 + ERP stage + tip + nav
+
+- **Sidebar** — `components/Sidebar.jsx`
+  - 스텝 리스트 + 각 스텝 progress mini bar
+  - intro/complete 스텝은 특수 스타일 (`.step-intro`, `.step-complete`)
+
+- **App** — `components/App.jsx`
+  - 최상위 상태·라우팅·키보드 핸들러
+  - `window.COURSES` 배열에 코스 추가 시 자동으로 인식되도록 확장 여지 있음 (현재는 `[window.COURSE_YAKAEK]` 하드코딩)
+
+- **Course data** — `data/course-yakaek.jsx`
+  - **BOM 등록편 등 새 코스 추가 시 이 파일과 동일 구조로 새 파일 만들면 됨**
+  - 스텝 종류: `intro` / `flow` / `interactive(기본)` / `complete`
+  - 인터랙티브 스텝 필드: `id, tag, title, lead, image, imageAspect, hotspots[], tip`
+
+- **Tweaks 패널** — `tweaks_panel.jsx` (참고용, 프로덕션에선 제거 가능)
+  - 개발 중 레이아웃/애니메이션 토글용
+
+---
+
+## Files
+
+번들에 포함된 파일:
+
+```
+design_handoff_erp_tutorial/
+├── README.md                          (이 문서)
+├── index.html                         (앱 셸 + 전체 CSS + React/Babel 로드)
+├── tweaks_panel.jsx                   (개발용 tweaks 스타터 — 프로덕션 제거 가능)
+├── data/
+│   └── course-yakaek.jsx              (코스 데이터 · 스텝 · 핫스팟 좌표)
+└── components/
+    ├── App.jsx                        (최상위)
+    ├── Sidebar.jsx                    (좌측 스텝 리스트)
+    ├── StepView.jsx                   (스텝 라우터 + Intro/Flow/Interactive/Complete)
+    ├── Hotspot.jsx                    (번호 마커)
+    └── ZoomOverlay.jsx                (핫스팟 확대 모달)
+```
+
+**이미지 자산은 용량 관계로 이 번들에 포함하지 않았습니다.**
+Design 프로젝트의 `assets/` 폴더에서 별도로 받으세요 (총 15개 PNG, 합계 ~2.3MB).
+
+---
+
+## 재구현 체크리스트
+
+프로덕션 코드베이스로 옮길 때 반드시 확인:
+
+- [ ] Babel in-browser 대신 build-time transpile (Vite / Next.js 등)
+- [ ] JSX 안의 코스 데이터를 JSON/MDX 등으로 분리
+- [ ] 이미지 최적화 (Next Image, `<picture>` + WebP)
+- [ ] localStorage 키 네임스페이싱 (`hanul-erp-course-<courseId>`)
+- [ ] 접근성 검토: hotspot이 `<button>` 이므로 aria-label 확인 · 키보드 탭 순서 · zoom overlay `role="dialog"` + focus trap
+- [ ] Progress bar를 `<progress>` 시맨틱 요소로 (선택)
+- [ ] 반응형: 800px 이하에서 사이드바 오프캔버스 · 마커 크기 축소 검토
+- [ ] 인쇄 스타일 검증 (Complete 화면 체크리스트 인쇄 기능)
+- [ ] BOM 등록편 등 다른 코스 확장 시 App.jsx의 `COURSES` 배열 데이터 소스 유연화
